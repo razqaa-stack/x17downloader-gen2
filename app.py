@@ -109,7 +109,6 @@ def convert():
 def serve_wallpaper(filename):
     return send_from_directory(os.getcwd(), filename)
 
-if __name__ == '__main__':
-    # PORT UNTUK RENDER
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+# Ganti bagian paling bawah (hapus if __name__ == '__main__')
+# Cukup sisakan baris ini saja di paling bawah:
+app = app 
