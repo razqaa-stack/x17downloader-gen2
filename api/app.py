@@ -4,6 +4,7 @@ import requests
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from flask_cors import CORS
 from moviepy.editor import VideoFileClip
+os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg" 
 
 app = Flask(__name__)
 CORS(app)
