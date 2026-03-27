@@ -92,20 +92,6 @@ def get_transcript():
     except:
         return jsonify({"status": False})
 
-@app.get("/search_yt")
-def search_youtube(query: str = Query(..., description="Query pencarian YouTube")):
-    try:
-        # Kita tembak API eksternalnya dari sisi server (Backend)
-        url = f"https://x.0cd.fun/search/youtube?query={query}"
-        response = requests.get(url, timeout=10)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {"status": False, "message": "API YouTube sedang sibuk."}
-    except Exception as e:
-        return {"status": False, "message": str(e)}
-
 @app.route('/convert', methods=['POST'])
 def convert():
     ts = str(int(time.time()))
