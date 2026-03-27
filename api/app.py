@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-from fastapi import FastAPI, Query
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from flask_cors import CORS
 from moviepy.editor import VideoFileClip
