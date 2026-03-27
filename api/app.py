@@ -91,6 +91,29 @@ def get_transcript():
     except:
         return jsonify({"status": False})
 
+# --- ROUTER YOUTUBE SEARCH ---
+@app.route('/search_yt', methods=['GET'])
+def search_youtube():
+    # Ambil parameter ?query= dari URL
+    query = request.args.get('query', '')
+    
+    if not query:
+        return jsonify({"status": False, "message": "Query pencarian kosong!"})
+        
+    try:
+        # Tembak API eksternal
+        url = f"https://x.0cd.fun/search/youtube?query={query}"
+        response = requests.get(url, timeout=15)
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({"status": False, "message": "API YouTube sedang sibuk."})
+            
+    except Exception as e:
+        return jsonify({"status": False, "message": str(e)})
+                           
+
 @app.route('/convert', methods=['POST'])
 def convert():
     ts = str(int(time.time()))
