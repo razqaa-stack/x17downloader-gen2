@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+from fastapi import FastAPI, Query
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from flask_cors import CORS
 from moviepy.editor import VideoFileClip
@@ -90,6 +91,20 @@ def get_transcript():
         return jsonify(response.json())
     except:
         return jsonify({"status": False})
+
+@app.get("/search_yt")
+def search_youtube(query: str = Query(..., description="Query pencarian YouTube")):
+    try:
+        # Kita tembak API eksternalnya dari sisi server (Backend)
+        url = f"https://x.0cd.fun/search/youtube?query={query}"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"status": False, "message": "API YouTube sedang sibuk."}
+    except Exception as e:
+        return {"status": False, "message": str(e)}
 
 @app.route('/convert', methods=['POST'])
 def convert():
