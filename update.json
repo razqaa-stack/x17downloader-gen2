@@ -1,10 +1,10 @@
 {
-  "active_date": "2026-03-27",
+  "active_date": "2026-03-29",
   "scenarios": {
     "maintenance": {
-      "until": "2026-03-28",
+      "until": "2026-04-20",
       "header": "MAINTENANCE MODE",
-      "msg": "Dear User X17Downloader, saat ini admin sedang melakukan perubahan dan pembaruan pada Aplikasi dan website, jadi website dan aplikasi sedang di nonaktifkan silahkan tunggu update hingga selesai pada tanggal 30 Maret 2026 dan untuk mengetahui Informasi pembaruan yang sedang dikerjakan lihat lagi disini pada tanggal 29 maret 2026. Terimakasih <br><br> - Developer X17 (Razqaa) 😊🙏🏻"
+      "msg": "Dear User X17Downloader, saat ini server aplikasi kami maupun website sedang ada gangguan, mohon maaf kemungkinan besar besok 30 maret 2026 server unduhan masih tertutup, ini mungkin sedikit mengecewakan namun kami akan perbaiki secepatnya, jadi website dan aplikasi sedang nonaktif silahkan tunggu perbaikan server hingga selesai pada tanggal yang belum ditentukan dan untuk mengetahui Informasi atau bertanya silahkan hubungi team kami pada Live chat nya atau langsung pada media sosial developer. Terimakasih <br><br> - Developer X17 (Razqaa) 😊🙏🏻"
     },
     "h_minus_1": {
       "date": "2026-03-29",
