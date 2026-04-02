@@ -42,44 +42,79 @@ def get_video():
     try:
         data = request.json
         url = data.get('url', '')
-        mode = data.get('mode', 'mp4') 
+        mode = data.get('mode', 'mp4')
         u = url.lower()
-        p = "youtube"
-        if any(x in u for x in ["twitter.com", "x.com"]): p = "twitter"
-        elif "instagram.com" in u: p = "instagram"
-        elif "tiktok.com" in u: p = "tiktok"
-        elif "v.douyin.com" in u: p = "douyin"
-        elif any(x in u for x in ["facebook.com", "fb.watch"]): p = "facebook"
-        elif "terabox.com" in u: p = "terabox"
-        elif "videy.co" in u: p = "videy"
-        elif "pinterest.com" in u: p = "pinterest"
-        elif "scribd.com" in u: p = "scribd"
 
-        target_format = "mp3" if mode == "mp3" else "mp4"
-        api_url = f"https://x.0cd.fun/dl/{p}?url={url}&format={target_format}&quality=128"
-        if p == "scribd": api_url = f"https://x.0cd.fun/dl/scribd?url={url}&type=pdf"
-        
-        response = requests.get(api_url, timeout=30)
+        if any(x in u for x in ["twitter.com", "x.com"]):
+            p = "twitter"
+        elif "instagram.com" in u:
+            p = "instagram"
+        elif any(x in u for x in ["tiktok.com", "vt.tiktok", "vm.tiktok"]):
+            p = "tiktok"
+        elif "v.douyin.com" in u:
+            p = "douyin"
+        elif any(x in u for x in ["facebook.com", "fb.watch"]):
+            p = "facebook"
+        elif "pin.it" in u or "pinterest.com" in u:
+            p = "pinterest"
+        elif "open.spotify.com" in u:
+            p = "spotify"
+        elif any(x in u for x in ["youtube.com", "youtu.be"]):
+            p = "youtube"
+        else:
+            return jsonify({'success': False, 'error': 'Platform tidak didukung'}), 400
+
+        BASE = "https://lol.cyvera.me"
+        params = {"url": url}
+
+        if p == "youtube":
+            params["type"] = "mp3" if mode == "mp3" else "video"
+            params["quality"] = "128kbps" if mode == "mp3" else "720p"
+            api_url = f"{BASE}/yt"
+        else:
+            api_url = f"{BASE}/{p}"
+
+        response = requests.get(api_url, params=params, timeout=30)
         res_data = response.json()
-        
-        if res_data.get('status'):
-            d = res_data['data']
-            final_url = d.get('download_url') or (d['media'][0].get('url') if d.get('media') else None)
-            if not final_url: return jsonify({'success': False, 'error': 'Gagal ambil link'}), 404
 
-            return jsonify({
-                'success': True,
-                'title': d.get('title', 'X17 Result'),
-                'thumbnail': d.get('thumbnail') or 'https://placehold.co/600x400',
-                'url': final_url,
-                'type': mode,
-                'quality': 'HD',
-                'platform': p
-            })
-        return jsonify({'success': False, 'error': 'API Gagal'}), 400
+        if not res_data.get('status'):
+            return jsonify({'success': False, 'error': 'API Gagal'}), 400
+
+        d = res_data.get('result', {})
+
+        if p == "tiktok":
+            final_url = d.get('video')
+        elif p == "youtube":
+            final_url = d.get('url')
+        elif p == "facebook":
+            final_url = d.get('url')
+        elif p == "spotify":
+            final_url = d.get('url')
+        elif p == "pinterest":
+            media = d.get('media', [])
+            final_url = media[0].get('url') if media else None
+        elif p in ["instagram", "twitter"]:
+            final_url = d[0].get('url') if isinstance(d, list) and d else None
+        elif p == "douyin":
+            final_url = d.get('video')
+        else:
+            final_url = None
+
+        if not final_url:
+            return jsonify({'success': False, 'error': 'Gagal ambil link'}), 404
+
+        return jsonify({
+            'success': True,
+            'title': d.get('title', 'Result'),
+            'thumbnail': d.get('thumbnail') or 'https://placehold.co/600x400',
+            'url': final_url,
+            'type': mode,
+            'quality': 'HD',
+            'platform': p
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
 @app.route('/get_transcript', methods=['POST'])
 def get_transcript():
     try:
