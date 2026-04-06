@@ -9,112 +9,116 @@ os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 app = Flask(__name__)
 CORS(app)
 
+# Base URL API NexRay
+NEX_BASE = "https://api.nexray.web.id"
 TEMP_DIR = "/tmp"
 
 @app.route('/')
 def index():
-    return "X17 ULTRA ENGINE V11 - LIVE ON RENDER"
+    return "X17 ULTRA ENGINE V12 - 11 PLATFORMS ACTIVE"
 
-# --- ROUTER AI GEMINI ---
 @app.route('/chat_ai', methods=['POST'])
 def chat_ai():
     try:
         data = request.json
         user_msg = data.get('message', '')
-        if not user_msg:
-            return jsonify({"success": False, "reply": "Pesan kosong nih!"})
-
-        api_url = "https://x.0cd.fun/ai/model/gemini-3-flash"
-        params = {
-            "prompt": user_msg,
-            "systemPrompt": "Jawab dengan Bahasa Indonesia. Singkat, padat, dan keren.",
-            "sessionId": "XDOWNLOADER_AIGEMINIV4"
-        }
-        response = requests.get(api_url, params=params, timeout=30)
+        api_url = f"{NEX_BASE}/ai/gemini"
+        response = requests.get(api_url, params={"text": user_msg}, timeout=20)
         res_json = response.json()
-        return jsonify({"success": True, "reply": res_json['data']['text']})
-    except Exception as e:
-        return jsonify({"success": False, "reply": "AI lagi sibuk, coba lagi nanti."})
+        return jsonify({"success": True, "reply": res_json.get("result")})
+    except:
+        return jsonify({"success": False, "reply": "AI Offline."})
 
-# --- ROUTER DOWNLOADER ---
 @app.route('/get_video', methods=['POST'])
 def get_video():
     try:
         data = request.json
         url = data.get('url', '')
-        mode = data.get('mode', 'mp4')
+        mode = data.get('mode', 'mp4') # 'mp4' atau 'mp3'
         u = url.lower()
 
-        if any(x in u for x in ["twitter.com", "x.com"]):
-            p = "twitter"
+        # --- MAPPING 11 API NEXRAY ---
+        if any(x in u for x in ["youtube.com", "youtu.be"]):
+            # Khusus YT ada endpoint v1 terpisah buat mp3/mp4
+            endpoint = f"{NEX_BASE}/downloader/v1/ytmp3" if mode == "mp3" else f"{NEX_BASE}/downloader/v1/ytmp4"
+            params = {"url": url, "resolusi": "1080"} # Default 1080p for YT Video
+        elif "facebook.com" in u or "fb.watch" in u:
+            endpoint = f"{NEX_BASE}/downloader/facebook"
+            params = {"url": url}
         elif "instagram.com" in u:
-            p = "instagram"
-        elif any(x in u for x in ["tiktok.com", "vt.tiktok", "vm.tiktok"]):
-            p = "tiktok"
-        elif "v.douyin.com" in u:
-            p = "douyin"
-        elif any(x in u for x in ["facebook.com", "fb.watch"]):
-            p = "facebook"
-        elif "pin.it" in u or "pinterest.com" in u:
-            p = "pinterest"
-        elif "open.spotify.com" in u:
-            p = "spotify"
-        elif any(x in u for x in ["youtube.com", "youtu.be"]):
-            p = "youtube"
+            endpoint = f"{NEX_BASE}/downloader/v2/instagram"
+            params = {"url": url}
+        elif "tiktok.com" in u:
+            endpoint = f"{NEX_BASE}/downloader/tiktok"
+            params = {"url": url}
+        elif "douyin.com" in u:
+            endpoint = f"{NEX_BASE}/downloader/v1/douyin"
+            params = {"url": url}
+        elif "spotify.com" in u:
+            endpoint = f"{NEX_BASE}/downloader/spotify"
+            params = {"url": url}
+        elif "pinterest.com" in u or "pin.it" in u:
+            endpoint = f"{NEX_BASE}/downloader/pinterest"
+            params = {"url": url}
+        elif "scribd.com" in u:
+            endpoint = f"{NEX_BASE}/downloader/scribd"
+            params = {"url": url}
+        elif "twitter.com" in u or "x.com" in u:
+            endpoint = f"{NEX_BASE}/downloader/twitter"
+            params = {"url": url}
+        elif "videy.co" in u:
+            endpoint = f"{NEX_BASE}/downloader/videy"
+            params = {"url": url}
         else:
-            return jsonify({'success': False, 'error': 'Platform tidak didukung'}), 400
+            # All-in-one fallback
+            endpoint = f"{NEX_BASE}/downloader/v1/aio"
+            params = {"url": url}
 
-        BASE = "https://lol.cyvera.me"
-        params = {"url": url}
+        r = requests.get(endpoint, params=params, timeout=30)
+        res = r.json()
 
-        if p == "youtube":
-            params["type"] = "mp3" if mode == "mp3" else "video"
-            params["quality"] = "128kbps" if mode == "mp3" else "720p"
-            api_url = f"{BASE}/yt"
+        if not res.get('status'):
+            return jsonify({'success': False, 'error': 'API NexRay gagal merespon'}), 400
+
+        result = res.get('result')
+        final_url = None
+        title = result.get('title') or "X17 Downloader Result"
+        thumb = result.get('thumbnail') or result.get('cover') or 'https://api.nexray.web.id/favicon.ico'
+
+        # --- LOGIKA EKSTRAKSI LINK (Sesuai Respon JSON lo) ---
+        if mode == "mp3":
+            if "music_info" in result: # TikTok Audio
+                final_url = result["music_info"].get("url")
+            elif "audio" in result: # Facebook / YT MP3 v1
+                final_url = result.get("audio")
+            elif "url" in result and ("spotify" in u or "ytmp3" in endpoint): # Spotify / YT MP3
+                final_url = result.get("url")
+            else:
+                # Jika mode mp3 dipilih tapi link audio ga ketemu, kasih url utama
+                final_url = result.get("url")
         else:
-            api_url = f"{BASE}/{p}"
-
-        response = requests.get(api_url, params=params, timeout=30)
-        res_data = response.json()
-
-        if not res_data.get('status'):
-            return jsonify({'success': False, 'error': 'API Gagal'}), 400
-
-        d = res_data.get('result', {})
-
-        if p == "tiktok":
-            final_url = d.get('video')
-        elif p == "youtube":
-            final_url = d.get('url')
-        elif p == "facebook":
-            final_url = d.get('url')
-        elif p == "spotify":
-            final_url = d.get('url')
-        elif p == "pinterest":
-            media = d.get('media', [])
-            final_url = media[0].get('url') if media else None
-        elif p in ["instagram", "twitter"]:
-            final_url = d[0].get('url') if isinstance(d, list) and d else None
-        elif p == "douyin":
-            final_url = d.get('video')
-        else:
-            final_url = None
-
-        if not final_url:
-            return jsonify({'success': False, 'error': 'Gagal ambil link'}), 404
+            # Mode MP4 / Video / File
+            if "video_hd" in result: # Facebook HD
+                final_url = result.get("video_hd")
+            elif "media" in result and isinstance(result["media"], list): # Instagram
+                final_url = result["media"][0].get("url")
+            elif "data" in result and "tiktok" in u: # TikTok Video
+                final_url = result.get("data")
+            else:
+                final_url = result.get("url") or result.get("video")
 
         return jsonify({
             'success': True,
-            'title': d.get('title', 'Result'),
-            'thumbnail': d.get('thumbnail') or 'https://placehold.co/600x400',
+            'title': title,
+            'thumbnail': thumb,
             'url': final_url,
-            'type': mode,
-            'quality': 'HD',
-            'platform': p
+            'type': mode.upper(),
+            'platform': endpoint.split('/')[-1]
         })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+        
 @app.route('/get_transcript', methods=['POST'])
 def get_transcript():
     try:
