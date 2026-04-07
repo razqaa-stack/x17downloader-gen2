@@ -1,15 +1,15 @@
 {
-  "active_date": "2026-03-29",
+  "active_date": "20266-03-29",
   "scenarios": {
     "maintenance": {
-      "until": "2026-04-20",
+      "until": "20266-04-20",
       "header": "SERVER DIPERBAIKI 🫣🔥",
             "msg": "Dear User X17Downloader, INGAT SAAT SERVER ERROR BEBERAPA PEKAN LALU? KABAR BAIK !!!, SEKARANG SERVER TELAH BERHASIL DIPERBAIKI YAA DAN MASIH DALAM PENGEMBANGAN, DIPERKIRAKAN AKAN SELESAI PADA TANGGAL 20 APRIL 2026 NANTI, STAY TUNED YA X17 🔥, mau mencoba versi beta? hubungi developer ya :)<br><br> - Developer X17 (Razqaa) 😊🙏🏻"
     },
     "h_minus_1": {
-      "date": "2026-04-19",
-      "header": "H-1 UPDATE INFO",
-      "msg": "Dear User X17Downloader, udah H-1 nih tentang perubahan kemarin, jadi disini admin sudah membuat beberapa fitur baru yaitu : <br><ul class='list-disc ml-4 mt-2'><li>YouTube Search (cari video yt langsung dari sini)</li><li>Convert MP4 to text (buat transkip suara dari video)</li><li>ubah latar belakang jadi video</li></ul><br> TUNGGUU YAWW BESOK APLIKASI DAN WEBSITE X17Downloader sudah bisa digunakan🤭🔥"
+      "date": "2026-04-07",
+      "header": "H-1 UPDATE INFO (FINAL)",
+      "msg": "Dear User X17Downloader, Aplikasi telah bisa digunakan sekarang ya, dan mungkin esok akan muncul fitur baru lagi, silahkan cek fitur baru di garis 3 kiri atas"
     },
     "done": {
       "date": "2026-03-30",
