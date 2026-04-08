@@ -1,13 +1,13 @@
 {
-  "active_date": "2026-03-29",
+  "active_date": "2026-04-08",
   "scenarios": {
     "maintenance": {
-      "until": "2026-04-06",
-      "header": "SERVER SIAPPP 🫣🔥",
-            "msg": "Dear User X17Downloader, INGAT SAAT SERVER ERROR BEBERAPA PEKAN LALU? KABAR BAIK !!!, SEKARANG SERVER TELAH BERHASIL DIPERBAIKI YAA DAN MASIH DALAM PENGEMBANGAN, DIPERKIRAKAN AKAN SELESAI PADA TANGGAL 20 APRIL 2026 NANTI, STAY TUNED YA X17 🔥, mau mencoba versi beta? hubungi developer ya :)<br><br> - Developer X17 (Razqaa) 😊🙏🏻"
+      "until": "2026-04-10",
+      "header": "SERVER DALAM PEMERIKSAAN",
+            "msg": "Dear User X17Downloader, BENTAR YA INI CUMA MODE PEMERIKSAN NANTI SORE UDAH BISA DIPAKE LAGII :)<br><br> - Developer X17 (Razqaa) 😊🙏🏻"
     },
     "h_minus_1": {
-      "date": "2026-04-07",
+      "date": "2026-04-09",
       "header": "H-1 UPDATE INFO (FINAL)",
       "msg": "Dear User X17Downloader, Aplikasi telah bisa digunakan sekarang ya, dan mungkin esok akan muncul fitur baru lagi, silahkan cek fitur baru di garis 3 kiri atas"
     },
