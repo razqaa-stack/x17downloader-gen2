@@ -2,17 +2,17 @@
   "active_date": "2026-04-09",
   "scenarios": {
     "maintenance": {
-      "until": "2026-04-12",
+      "until": "2026-04-18",
       "header": "MAINTENANCE: SERVER DIKUNCI 🛠️",
-      "msg": "Mohon maaf, server sedang dalam perbaikan besar. Web dikunci sementara dan akan dibuka kembali pada 9 April 2026. <br><br> - Developer X17 (Razqaa)"
+      "msg": "Mohon maaf, server sedang dalam perbaikan besar dan penambahan fitur baru. Web dikunci sementara dan akan dibuka kembali pada 20 April 2026. <br><br> - Developer X17 (Razqaa)"
     },
     "h_minus_1": {
-      "date": "2026-04-13",
+      "date": "2026-04-19",
       "header": "H-1 UPDATE INFO (FINAL)",
-      "msg": "Persiapan selesai! Besok fitur baru akan dirilis. Silakan cek menu di pojok kiri atas untuk melihat perubahan awal."
+      "msg": "Persiapan selesai! Besok fitur baru akan dirilis. Silakan cek menu di pojok kiri atas untuk melihat perubahan awal dan X17Downloader sudah bisa digunakan."
     },
     "done": {
-      "date": "2026-04-14",
+      "date": "2026-04-20",
       "header": "UPDATE SELESAI! 🥳",
       "msg": "Update sukses diterapkan! Sekarang website sudah bisa digunakan kembali dengan normal. Selamat menikmati fitur baru X17Downloader!"
     }
