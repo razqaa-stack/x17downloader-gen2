@@ -3,18 +3,18 @@
   "scenarios": {
     "maintenance": {
       "until": "2026-04-08",
-      "header": "SERVER DALAM PEMERIKSAAN",
-            "msg": "Dear User X17Downloader, BENTAR YA INI CUMA MODE PEMERIKSAN NANTI SORE UDAH BISA DIPAKE LAGII :)<br><br> - Developer X17 (Razqaa) 😊🙏🏻"
+      "header": "MAINTENANCE: SERVER DIKUNCI 🛠️",
+      "msg": "Mohon maaf, server sedang dalam perbaikan besar. Web dikunci sementara dan akan dibuka kembali pada 9 April 2026. <br><br> - Developer X17 (Razqaa)"
     },
     "h_minus_1": {
       "date": "2026-04-09",
       "header": "H-1 UPDATE INFO (FINAL)",
-      "msg": "Dear User X17Downloader, Aplikasi telah bisa digunakan sekarang ya, dan mungkin esok akan muncul fitur baru lagi, silahkan cek fitur baru di garis 3 kiri atas"
+      "msg": "Persiapan selesai! Besok fitur baru akan dirilis. Silakan cek menu di pojok kiri atas untuk melihat perubahan awal."
     },
     "done": {
       "date": "2026-04-10",
-      "header": "UPDATE SUDAH SELESAIII!",
-      "msg": "Dear User X17Downloader, terimakasih telah menunggu admin mengerjakan pembaruan, sekarang aplikasi dan website sudah bisa di gunakan yaa, untuk mengakses fitur baru kemarin, silakan cek bagian drawer/side bar garis 3 di kiri atas, Terimakasih udah menunggu <br><br> - Salam hangat developer (Razqaa) 🥳☝🏻"
+      "header": "UPDATE SELESAI! 🥳",
+      "msg": "Update sukses diterapkan! Sekarang website sudah bisa digunakan kembali dengan normal. Selamat menikmati fitur baru X17Downloader!"
     }
   }
 }
