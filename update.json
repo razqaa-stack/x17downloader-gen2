@@ -1,8 +1,8 @@
 {
-  "active_date": "2026-04-08",
+  "active_date": "2026-04-07",
   "scenarios": {
     "maintenance": {
-      "until": "2026-04-10",
+      "until": "2026-04-08",
       "header": "SERVER DALAM PEMERIKSAAN",
             "msg": "Dear User X17Downloader, BENTAR YA INI CUMA MODE PEMERIKSAN NANTI SORE UDAH BISA DIPAKE LAGII :)<br><br> - Developer X17 (Razqaa) 😊🙏🏻"
     },
@@ -12,7 +12,7 @@
       "msg": "Dear User X17Downloader, Aplikasi telah bisa digunakan sekarang ya, dan mungkin esok akan muncul fitur baru lagi, silahkan cek fitur baru di garis 3 kiri atas"
     },
     "done": {
-      "date": "2026-04-08",
+      "date": "2026-04-10",
       "header": "UPDATE SUDAH SELESAIII!",
       "msg": "Dear User X17Downloader, terimakasih telah menunggu admin mengerjakan pembaruan, sekarang aplikasi dan website sudah bisa di gunakan yaa, untuk mengakses fitur baru kemarin, silakan cek bagian drawer/side bar garis 3 di kiri atas, Terimakasih udah menunggu <br><br> - Salam hangat developer (Razqaa) 🥳☝🏻"
     }
