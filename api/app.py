@@ -39,27 +39,43 @@ def get_video():
 
         # --- LOGIKA BARU: DETEKSI IG STORY (SIPUTX) ---
         if "instagram.com/stories/" in u:
-            endpoint_siput = "https://app.siputzx.my.id/api/d/igram"
-            r = requests.get(endpoint_siput, params={"url": url}, timeout=30)
-            res = r.json()
-            
-            if not res.get('status'):
-                return jsonify({'success': False, 'error': 'API gagal'}), 400
-            
-            data_siput = res.get('data')
-            # Ambil video pertama dari array url
-            final_url = data_siput['url'][0]['url'] 
-            title = data_siput['meta'].get('title') or "Instagram Story"
-            thumb = data_siput.get('thumb') or "https://api.nexray.web.id/favicon.ico"
+            try:
+                endpoint_siput = "https://app.siputzx.my.id/api/d/igram"
+                # Tambahin timeout biar gak gantung
+                r = requests.get(endpoint_siput, params={"url": url}, timeout=15)
+                
+                # Cek apakah responnya beneran JSON
+                try:
+                    res = r.json()
+                except:
+                    return jsonify({'success': False, 'error': 'Respon API SiputX bukan JSON'}), 500
 
-            return jsonify({
-                'success': True,
-                'title': title,
-                'thumbnail': thumb,
-                'url': final_url,
-                'type': mode.upper(),
-                'platform': 'SiputX-Igram'
-            })
+                if not res.get('status') or 'data' not in res:
+                    return jsonify({'success': False, 'error': 'Story tidak ditemukan atau Private'}), 400
+                
+                data_siput = res.get('data')
+                urls = data_siput.get('url', [])
+                
+                if not urls:
+                    return jsonify({'success': False, 'error': 'Link download tidak tersedia'}), 400
+
+                # Ambil data dengan aman
+                final_url = urls[0].get('url')
+                meta = data_siput.get('meta', {})
+                title = meta.get('title') or "Instagram Story"
+                thumb = data_siput.get('thumb') or "https://api.nexray.web.id/favicon.ico"
+
+                return jsonify({
+                    'success': True,
+                    'title': title,
+                    'thumbnail': thumb,
+                    'url': final_url,
+                    'type': mode.upper(),
+                    'platform': 'SiputX-Igram'
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': f'Error: {str(e)}'}), 500
+
         # --- MAPPING 11 API NEXRAY ---
         if any(x in u for x in ["youtube.com", "youtu.be"]):
             # Khusus YT ada endpoint v1 terpisah buat mp3/mp4
@@ -94,7 +110,7 @@ def get_video():
             params = {"url": url}
         else:
             # All-in-one fallback
-            endpoint = f"{NEX_BASE}/downloader/v1/aio"
+            endpoint = f"{NEX_BASE}/downloader/aio"
             params = {"url": url}
 
         r = requests.get(endpoint, params=params, timeout=30)
