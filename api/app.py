@@ -34,9 +34,32 @@ def get_video():
     try:
         data = request.json
         url = data.get('url', '')
-        mode = data.get('mode', 'mp4') # 'mp4' atau 'mp3'
+        mode = data.get('mode', 'mp4') 
         u = url.lower()
 
+        # --- LOGIKA BARU: DETEKSI IG STORY (SIPUTX) ---
+        if "instagram.com/stories/" in u:
+            endpoint_siput = "https://app.siputzx.my.id/api/d/igram"
+            r = requests.get(endpoint_siput, params={"url": url}, timeout=30)
+            res = r.json()
+            
+            if not res.get('status'):
+                return jsonify({'success': False, 'error': 'API gagal'}), 400
+            
+            data_siput = res.get('data')
+            # Ambil video pertama dari array url
+            final_url = data_siput['url'][0]['url'] 
+            title = data_siput['meta'].get('title') or "Instagram Story"
+            thumb = data_siput.get('thumb') or "https://api.nexray.web.id/favicon.ico"
+
+            return jsonify({
+                'success': True,
+                'title': title,
+                'thumbnail': thumb,
+                'url': final_url,
+                'type': mode.upper(),
+                'platform': 'SiputX-Igram'
+            })
         # --- MAPPING 11 API NEXRAY ---
         if any(x in u for x in ["youtube.com", "youtu.be"]):
             # Khusus YT ada endpoint v1 terpisah buat mp3/mp4
