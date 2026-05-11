@@ -37,18 +37,23 @@ def get_video():
         mode = data.get('mode', 'mp4') 
         u = url.lower()
 
-        # --- LOGIKA BARU: DETEKSI IG STORY (SIPUTX) ---
+                # --- LOGIKA BARU: DETEKSI IG STORY (SIPUTX) ---
         if "instagram.com/stories/" in u:
             try:
                 endpoint_siput = "https://app.siputzx.my.id/api/d/igram"
-                # Tambahin timeout biar gak gantung
-                r = requests.get(endpoint_siput, params={"url": url}, timeout=15)
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                    "Accept": "application/json"
+                }
                 
-                # Cek apakah responnya beneran JSON
-                try:
-                    res = r.json()
-                except:
-                    return jsonify({'success': False, 'error': 'Respon API SiputX bukan JSON'}), 500
+                r = requests.get(endpoint_siput, params={"url": url}, headers=headers, timeout=15)
+                
+                # Cek tipe konten
+                content_type = r.headers.get('Content-Type', '')
+                if 'application/json' not in content_type:
+                    return jsonify({'success': False, 'error': f'SiputX Ngambek (Bukan JSON). Type: {content_type}'}), 500
+
+                res = r.json()
 
                 if not res.get('status') or 'data' not in res:
                     return jsonify({'success': False, 'error': 'Story tidak ditemukan atau Private'}), 400
@@ -59,7 +64,6 @@ def get_video():
                 if not urls:
                     return jsonify({'success': False, 'error': 'Link download tidak tersedia'}), 400
 
-                # Ambil data dengan aman
                 final_url = urls[0].get('url')
                 meta = data_siput.get('meta', {})
                 title = meta.get('title') or "Instagram Story"
@@ -74,7 +78,7 @@ def get_video():
                     'platform': 'SiputX-Igram'
                 })
             except Exception as e:
-                return jsonify({'success': False, 'error': f'Error: {str(e)}'}), 500
+                return jsonify({'success': False, 'error': f'SiputX Logic Error: {str(e)}'}), 500
 
         # --- MAPPING 11 API NEXRAY ---
         if any(x in u for x in ["youtube.com", "youtu.be"]):
