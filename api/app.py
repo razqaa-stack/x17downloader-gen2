@@ -201,6 +201,89 @@ def ig_story():
     except Exception as e:
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
+@app.route('/proxy_download', methods=['GET'])
+def proxy_download():
+    """
+    Proxy download file dari URL eksternal.
+    WebView fetch endpoint ini → Flask stream file → onDownloadStart() kepanggil di Android.
+    
+    Query params:
+      url      = URL file asli (encoded)
+      filename = nama file yang diinginkan (opsional)
+    """
+    try:
+        file_url  = request.args.get('url', '').strip()
+        filename  = request.args.get('filename', '').strip()
+
+        if not file_url:
+            return jsonify({'error': 'URL kosong'}), 400
+
+        # Tebak ekstensi dari URL kalau filename kosong
+        if not filename:
+            from urllib.parse import urlparse
+            path = urlparse(file_url).path
+            basename = path.split('/')[-1].split('?')[0]
+            # Ambil ekstensi, default mp4
+            ext = basename.split('.')[-1] if '.' in basename else 'mp4'
+            # Batasi ekstensi yang valid
+            if ext.lower() not in ['mp4', 'mp3', 'jpg', 'jpeg', 'png', 'gif', 'webm', 'mov']:
+                ext = 'mp4'
+            filename = f"X17_Download_{int(time.time())}.{ext}"
+
+        # Tentukan MIME type
+        ext_lower = filename.split('.')[-1].lower()
+        mime_map = {
+            'mp4':  'video/mp4',
+            'mp3':  'audio/mpeg',
+            'jpg':  'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png':  'image/png',
+            'gif':  'image/gif',
+            'webm': 'video/webm',
+            'mov':  'video/quicktime',
+        }
+        mime_type = mime_map.get(ext_lower, 'application/octet-stream')
+
+        # Stream dari sumber ke client
+        headers_req = {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36',
+            'Accept': '*/*',
+            'Referer': 'https://www.instagram.com/',
+        }
+
+        upstream = requests.get(file_url, headers=headers_req, stream=True, timeout=60)
+
+        if upstream.status_code not in [200, 206]:
+            return jsonify({'error': f'Upstream error {upstream.status_code}'}), 502
+
+        # Ambil content-length kalau ada
+        content_length = upstream.headers.get('Content-Length')
+
+        def generate():
+            for chunk in upstream.iter_content(chunk_size=1024 * 64):  # 64KB chunks
+                if chunk:
+                    yield chunk
+
+        response_headers = {
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Type': mime_type,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache',
+        }
+        if content_length:
+            response_headers['Content-Length'] = content_length
+
+        return Response(
+            generate(),
+            headers=response_headers,
+            status=200
+        )
+
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'Timeout mengambil file'}), 504
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/get_video', methods=['POST'])
 def get_video():
     try:
