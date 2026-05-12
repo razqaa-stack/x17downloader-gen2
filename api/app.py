@@ -1,3 +1,5 @@
+
+
 import os
 import time
 import requests
@@ -66,6 +68,99 @@ def proxy_siput():
             'type':      file_type,
             'platform':  'SiputX-Story'
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ═══════════════════════════════════════════════════════════════════
+# PATCH: Tambah endpoint ini ke app.py kamu
+# Taruh setelah @app.route('/proxy_siput') atau sebelum if __name__
+# ═══════════════════════════════════════════════════════════════════
+
+@app.route('/ig_story', methods=['POST'])
+def ig_story():
+    """
+    Download Instagram Story via SiputZX dari sisi server (bypass CORS).
+    Frontend kirim: { "url": "https://instagram.com/stories/...", "mode": "mp4" }
+    """
+    try:
+        data = request.json
+        story_url = data.get('url', '').strip()
+        mode      = data.get('mode', 'mp4').lower()
+
+        if not story_url:
+            return jsonify({'success': False, 'error': 'URL kosong'}), 400
+
+        # Tembak SiputZX dari server (tidak ada CORS di server-side)
+        encoded  = requests.utils.quote(story_url, safe='')
+        endpoint = f"https://app.siputzx.my.id/api/d/igram?url={encoded}"
+
+        headers = {
+            'Accept':          'application/json, text/plain, */*',
+            'Referer':         'https://app.siputzx.my.id/',
+            'Origin':          'https://app.siputzx.my.id',
+            'User-Agent':      'Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
+        }
+
+        r = requests.get(endpoint, headers=headers, timeout=30)
+
+        # Cek apakah response benar-benar JSON
+        content_type = r.headers.get('Content-Type', '')
+        if 'html' in content_type or r.text.strip().startswith('<!'):
+            return jsonify({'success': False, 'error': 'SiputZX mengembalikan HTML, bukan JSON. Coba lagi.'}), 502
+
+        res = r.json()
+
+        if not res.get('status'):
+            return jsonify({'success': False, 'error': res.get('message', 'Story tidak tersedia atau private')}), 400
+
+        # ── Parse struktur response SiputZX igram ──────────────────
+        # res['data']['url']  → list dict {url, name, type, ext, quality}
+        # res['data']['thumb'] → thumbnail URL
+        # res['data']['meta']  → {title, username, source, ...}
+        # ───────────────────────────────────────────────────────────
+
+        siput_data = res.get('data', {})
+        url_list   = siput_data.get('url', [])
+        meta       = siput_data.get('meta', {})
+        thumbnail  = siput_data.get('thumb', '')
+
+        # Judul
+        title = ''
+        if isinstance(meta, dict):
+            title = meta.get('title', '')
+            if not title:
+                username = meta.get('username', '')
+                title = f"Instagram Story @{username}" if username else "Instagram Story"
+
+        # Pilih URL terbaik
+        final_url = ''
+        valid_urls = [x for x in url_list if x and x.get('url')]
+
+        if mode == 'mp3':
+            # Cari audio dulu, kalau gak ada fallback ke video
+            audio = next((x for x in valid_urls if x.get('type') == 'audio' or 'audio' in (x.get('name') or '').lower()), None)
+            final_url = audio['url'] if audio else (valid_urls[0]['url'] if valid_urls else '')
+        else:
+            # Pilih kualitas tertinggi (sort by quality desc)
+            sorted_urls = sorted(valid_urls, key=lambda x: x.get('quality', 0), reverse=True)
+            final_url   = sorted_urls[0]['url'] if sorted_urls else ''
+
+        if not final_url:
+            return jsonify({'success': False, 'error': 'Tidak ada URL video di response SiputZX'}), 400
+
+        return jsonify({
+            'success':   True,
+            'title':     title,
+            'thumbnail': thumbnail,
+            'url':       final_url,
+            'type':      mode.upper(),
+            'platform':  'Instagram-Story'
+        })
+
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'error': 'SiputZX timeout, coba lagi'}), 504
+    except requests.exceptions.JSONDecodeError:
+        return jsonify({'success': False, 'error': 'SiputZX return bukan JSON (mungkin sedang maintenance)'}), 502
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
