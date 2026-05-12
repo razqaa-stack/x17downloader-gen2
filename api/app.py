@@ -4,18 +4,18 @@ import requests
 from flask import Flask, request, send_file, jsonify, send_from_directory
 from flask_cors import CORS
 from moviepy.editor import VideoFileClip
+from urllib.parse import quote_plus
 os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg" 
 
 app = Flask(__name__)
 CORS(app)
 
-# Base URL API NexRay
 NEX_BASE = "https://api.nexray.web.id"
 TEMP_DIR = "/tmp"
 
 @app.route('/')
 def index():
-    return "X17 ULTRA ENGINE V12 - 11 PLATFORMS ACTIVE"
+    return "X17 ULTRA ENGINE V13 - SIPUTX + NEXRAY HYBRID 🚀"
 
 @app.route('/chat_ai', methods=['POST'])
 def chat_ai():
@@ -34,37 +34,66 @@ def get_video():
     try:
         data = request.json
         url = data.get('url', '')
-        mode = data.get('mode', 'mp4') 
+        mode = data.get('mode', 'mp4')
         u = url.lower()
 
-                # --- LOGIKA BARU: DETEKSI IG STORY (SIPUTX) ---
+        # ═══════════════════════════════════════════════════════════
+        #  INSTAGRAM STORY — SIPUTX PRIMARY + NEXRAY FALLBACK
+        # ═══════════════════════════════════════════════════════════
         if "instagram.com/stories/" in u:
+            # ── Coba SiputX dulu (lebih fresh untuk story) ──────
             try:
-                endpoint_siput = "https://app.siputzx.my.id/api/d/igram"
+                # URL encode parameter URL biar ga error
+                encoded_url = quote_plus(url)
+                endpoint_siput = f"https://app.siputzx.my.id/api/d/igram?url={encoded_url}"
+                
                 headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-                    "Accept": "application/json"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json, text/plain, */*",
+                    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Referer": "https://app.siputzx.my.id/",
+                    "Origin": "https://app.siputzx.my.id"
                 }
                 
-                r = requests.get(endpoint_siput, params={"url": url}, headers=headers, timeout=15)
+                r = requests.get(endpoint_siput, headers=headers, timeout=12)
                 
-                # Cek tipe konten
+                # ── Cek apakah response valid JSON ──────────────
                 content_type = r.headers.get('Content-Type', '')
+                
                 if 'application/json' not in content_type:
-                    return jsonify({'success': False, 'error': f'SiputX Ngambek (Bukan JSON). Type: {content_type}'}), 500
-
+                    # Response bukan JSON (error page HTML) → fallback
+                    raise Exception(f"SiputX HTML response (rate limit?): {content_type}")
+                
                 res = r.json()
 
-                if not res.get('status') or 'data' not in res:
-                    return jsonify({'success': False, 'error': 'Story tidak ditemukan atau Private'}), 400
+                # ── Validasi structure response ─────────────────
+                if not res.get('status'):
+                    raise Exception(res.get('message', 'Story tidak tersedia'))
                 
-                data_siput = res.get('data')
+                data_siput = res.get('data', {})
                 urls = data_siput.get('url', [])
                 
-                if not urls:
-                    return jsonify({'success': False, 'error': 'Link download tidak tersedia'}), 400
+                if not urls or len(urls) == 0:
+                    raise Exception('Link download kosong dari SiputX')
 
-                final_url = urls[0].get('url')
+                # ── Ekstrak data ─────────────────────────────────
+                # Mode mp3 → cari audio dari DASH manifest atau url audio
+                if mode == 'mp3':
+                    # Cek apakah ada variant audio di array url
+                    audio_url = None
+                    for item in urls:
+                        if item.get('type') == 'audio' or 'audio' in item.get('name', '').lower():
+                            audio_url = item.get('url')
+                            break
+                    
+                    # Kalau ga ada audio variant, ambil video terus client extract audionya
+                    final_url = audio_url if audio_url else urls[0].get('url')
+                else:
+                    # Mode mp4 → ambil kualitas tertinggi
+                    # Sort by quality descending
+                    sorted_urls = sorted(urls, key=lambda x: x.get('quality', 0), reverse=True)
+                    final_url = sorted_urls[0].get('url')
+
                 meta = data_siput.get('meta', {})
                 title = meta.get('title') or "Instagram Story"
                 thumb = data_siput.get('thumb') or "https://api.nexray.web.id/favicon.ico"
@@ -75,80 +104,161 @@ def get_video():
                     'thumbnail': thumb,
                     'url': final_url,
                     'type': mode.upper(),
-                    'platform': 'SiputX-Igram'
+                    'platform': 'SiputX-Story'
                 })
-            except Exception as e:
-                return jsonify({'success': False, 'error': f'SiputX Logic Error: {str(e)}'}), 500
 
-        # --- MAPPING 11 API NEXRAY ---
+            except Exception as siput_error:
+                # ── FALLBACK: NexRay Instagram v2 ───────────────
+                # SiputX gagal → pakai NexRay (lebih stabil tapi kadang ga support story fresh)
+                print(f"⚠️ SiputX failed: {siput_error}, fallback to NexRay...")
+                
+                try:
+                    endpoint_nex = f"{NEX_BASE}/downloader/v2/instagram"
+                    params_nex = {"url": url}
+                    r_nex = requests.get(endpoint_nex, params=params_nex, timeout=20)
+                    res_nex = r_nex.json()
+
+                    if not res_nex.get('status'):
+                        return jsonify({
+                            'success': False, 
+                            'error': f'SiputX & NexRay gagal. Story mungkin private atau expired.'
+                        }), 400
+
+                    result_nex = res_nex.get('result', {})
+                    
+                    # Ekstrak link
+                    if mode == 'mp3':
+                        # Coba ambil audio kalau ada
+                        final_url_nex = result_nex.get('audio') or result_nex.get('url')
+                    else:
+                        # Video
+                        media = result_nex.get('media', [])
+                        if media and len(media) > 0:
+                            final_url_nex = media[0].get('url')
+                        else:
+                            final_url_nex = result_nex.get('url')
+
+                    title_nex = result_nex.get('title') or "Instagram Story (NexRay)"
+                    thumb_nex = result_nex.get('thumbnail') or "https://api.nexray.web.id/favicon.ico"
+
+                    return jsonify({
+                        'success': True,
+                        'title': title_nex,
+                        'thumbnail': thumb_nex,
+                        'url': final_url_nex,
+                        'type': mode.upper(),
+                        'platform': 'NexRay-Fallback'
+                    })
+
+                except Exception as nex_error:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Semua API gagal. SiputX: {str(siput_error)[:50]}, NexRay: {str(nex_error)[:50]}'
+                    }), 500
+
+        # ═══════════════════════════════════════════════════════════
+        #  PLATFORM LAIN (YOUTUBE, TIKTOK, FB, dll) — NEXRAY
+        # ═══════════════════════════════════════════════════════════
+        
+        # YouTube
         if any(x in u for x in ["youtube.com", "youtu.be"]):
-            # Khusus YT ada endpoint v1 terpisah buat mp3/mp4
             endpoint = f"{NEX_BASE}/downloader/v1/ytmp3" if mode == "mp3" else f"{NEX_BASE}/downloader/v1/ytmp4"
-            params = {"url": url, "resolusi": "1080"} # Default 1080p for YT Video
+            params = {"url": url, "resolusi": "1080"}
+        
+        # Facebook
         elif "facebook.com" in u or "fb.watch" in u:
             endpoint = f"{NEX_BASE}/downloader/facebook"
             params = {"url": url}
+        
+        # Instagram (non-story: reel, post, IGTV)
         elif "instagram.com" in u:
             endpoint = f"{NEX_BASE}/downloader/v2/instagram"
             params = {"url": url}
+        
+        # TikTok
         elif "tiktok.com" in u:
             endpoint = f"{NEX_BASE}/downloader/tiktok"
             params = {"url": url}
+        
+        # Douyin
         elif "douyin.com" in u:
             endpoint = f"{NEX_BASE}/downloader/v1/douyin"
             params = {"url": url}
+        
+        # Spotify
         elif "spotify.com" in u:
             endpoint = f"{NEX_BASE}/downloader/spotify"
             params = {"url": url}
+        
+        # Pinterest
         elif "pinterest.com" in u or "pin.it" in u:
             endpoint = f"{NEX_BASE}/downloader/pinterest"
             params = {"url": url}
+        
+        # Scribd
         elif "scribd.com" in u:
             endpoint = f"{NEX_BASE}/downloader/scribd"
             params = {"url": url}
+        
+        # Twitter/X
         elif "twitter.com" in u or "x.com" in u:
             endpoint = f"{NEX_BASE}/downloader/twitter"
             params = {"url": url}
+        
+        # Videy
         elif "videy.co" in u:
             endpoint = f"{NEX_BASE}/downloader/videy"
             params = {"url": url}
+        
+        # All-in-one fallback
         else:
-            # All-in-one fallback
             endpoint = f"{NEX_BASE}/downloader/aio"
             params = {"url": url}
 
+        # ── Execute NexRay API ──────────────────────────────────
         r = requests.get(endpoint, params=params, timeout=30)
         res = r.json()
 
         if not res.get('status'):
-            return jsonify({'success': False, 'error': 'API NexRay gagal merespon'}), 400
+            return jsonify({
+                'success': False, 
+                'error': res.get('message', 'API NexRay gagal merespon')
+            }), 400
 
-        result = res.get('result')
+        result = res.get('result', {})
         final_url = None
         title = result.get('title') or "X17 Downloader Result"
         thumb = result.get('thumbnail') or result.get('cover') or 'https://api.nexray.web.id/favicon.ico'
 
-        # --- LOGIKA EKSTRAKSI LINK (Sesuai Respon JSON lo) ---
+        # ── Ekstraksi link berdasarkan mode ────────────────────
         if mode == "mp3":
-            if "music_info" in result: # TikTok Audio
+            # Audio priority: music_info > audio > url
+            if "music_info" in result:
                 final_url = result["music_info"].get("url")
-            elif "audio" in result: # Facebook / YT MP3 v1
+            elif "audio" in result:
                 final_url = result.get("audio")
-            elif "url" in result and ("spotify" in u or "ytmp3" in endpoint): # Spotify / YT MP3
+            elif "url" in result:
                 final_url = result.get("url")
             else:
-                # Jika mode mp3 dipilih tapi link audio ga ketemu, kasih url utama
-                final_url = result.get("url")
+                final_url = result.get("video") # Fallback ke video
         else:
-            # Mode MP4 / Video / File
-            if "video_hd" in result: # Facebook HD
+            # Video priority: video_hd > media[0] > data > url > video
+            if "video_hd" in result:
                 final_url = result.get("video_hd")
-            elif "media" in result and isinstance(result["media"], list): # Instagram
+            elif "media" in result and isinstance(result["media"], list) and len(result["media"]) > 0:
                 final_url = result["media"][0].get("url")
-            elif "data" in result and "tiktok" in u: # TikTok Video
+            elif "data" in result:
                 final_url = result.get("data")
+            elif "url" in result:
+                final_url = result.get("url")
             else:
-                final_url = result.get("url") or result.get("video")
+                final_url = result.get("video")
+
+        if not final_url:
+            return jsonify({
+                'success': False,
+                'error': 'Link download tidak ditemukan di response API'
+            }), 400
 
         return jsonify({
             'success': True,
@@ -161,7 +271,7 @@ def get_video():
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-        
+
 @app.route('/get_transcript', methods=['POST'])
 def get_transcript():
     try:
@@ -173,28 +283,20 @@ def get_transcript():
     except:
         return jsonify({"status": False})
 
-# --- ROUTER YOUTUBE SEARCH ---
 @app.route('/search_yt', methods=['GET'])
 def search_youtube():
-    # Ambil parameter ?query= dari URL
     query = request.args.get('query', '')
-    
     if not query:
         return jsonify({"status": False, "message": "Query pencarian kosong!"})
-        
     try:
-        # Tembak API eksternal
         url = f"https://x.0cd.fun/search/youtube?query={query}"
         response = requests.get(url, timeout=15)
-        
         if response.status_code == 200:
             return jsonify(response.json())
         else:
             return jsonify({"status": False, "message": "API YouTube sedang sibuk."})
-            
     except Exception as e:
         return jsonify({"status": False, "message": str(e)})
-                           
 
 @app.route('/convert', methods=['POST'])
 def convert():
@@ -207,7 +309,8 @@ def convert():
         with VideoFileClip(v_path) as clip:
             clip.audio.write_audiofile(a_path, codec='libmp3lame', logger=None)
         return send_file(a_path, as_attachment=True, download_name="X17_Converted.mp3")
-    except Exception as e: return f"Error: {str(e)}", 500
+    except Exception as e:
+        return f"Error: {str(e)}", 500
     finally:
         if os.path.exists(v_path): os.remove(v_path)
 
@@ -215,6 +318,4 @@ def convert():
 def serve_wallpaper(filename):
     return send_from_directory(os.getcwd(), filename)
 
-# Ganti bagian paling bawah (hapus if __name__ == '__main__')
-# Cukup sisakan baris ini saja di paling bawah:
-app = app 
+app = app
