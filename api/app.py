@@ -64,94 +64,142 @@ def proxy_siput():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 @app.route('/ig_story', methods=['POST'])
 def ig_story():
     """
-    Download Instagram Story via SiputZX dari sisi server (bypass CORS).
+    Download Instagram Story dengan multi-fallback API.
     Frontend kirim: { "url": "https://instagram.com/stories/...", "mode": "mp4" }
     """
     try:
-        data = request.json
+        data      = request.json
         story_url = data.get('url', '').strip()
         mode      = data.get('mode', 'mp4').lower()
 
         if not story_url:
             return jsonify({'success': False, 'error': 'URL kosong'}), 400
 
-        # Tembak SiputZX dari server (tidak ada CORS di server-side)
-        encoded  = requests.utils.quote(story_url, safe='')
-        endpoint = f"https://app.siputzx.my.id/api/d/igram?url={encoded}"
+        # Helper: cek apakah response JSON valid (bukan HTML error page)
+        def is_json_ok(r):
+            ct   = r.headers.get('Content-Type', '')
+            text = r.text.strip()
+            if 'html' in ct: return False
+            if text.startswith('<!') or text.startswith('<html'): return False
+            if r.status_code != 200: return False
+            return True
 
-        headers = {
-            'Accept':          'application/json, text/plain, */*',
-            'Referer':         'https://app.siputzx.my.id/',
-            'Origin':          'https://app.siputzx.my.id',
-            'User-Agent':      'Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36',
-        }
+        # Helper: parse struktur SiputZX igram
+        def parse_siputzx(res_json, mode):
+            d         = res_json.get('data', {})
+            url_list  = d.get('url', [])
+            meta      = d.get('meta', {})
+            thumbnail = d.get('thumb', '')
+            title     = ''
+            if isinstance(meta, dict):
+                title = meta.get('title', '') or ''
+                if not title:
+                    uname = meta.get('username', '')
+                    title = f"Instagram Story @{uname}" if uname else "Instagram Story"
+            valid = [x for x in url_list if x and x.get('url')]
+            if mode == 'mp3':
+                pick = next((x for x in valid if x.get('type') == 'audio'), None)
+                url  = pick['url'] if pick else (valid[0]['url'] if valid else '')
+            else:
+                srt  = sorted(valid, key=lambda x: x.get('quality', 0), reverse=True)
+                url  = srt[0]['url'] if srt else ''
+            return title, thumbnail, url
 
-        r = requests.get(endpoint, headers=headers, timeout=30)
+        encoded = requests.utils.quote(story_url, safe='')
 
-        # Cek apakah response benar-benar JSON
-        content_type = r.headers.get('Content-Type', '')
-        if 'html' in content_type or r.text.strip().startswith('<!'):
-            return jsonify({'success': False, 'error': 'SiputZX mengembalikan HTML, bukan JSON. Coba lagi.'}), 502
+        # ── FALLBACK 1: api.siputzx.my.id (subdomain API) ──
+        try:
+            r = requests.get(
+                f"https://api.siputzx.my.id/api/d/igram?url={encoded}",
+                headers={'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'},
+                timeout=20
+            )
+            if is_json_ok(r):
+                res = r.json()
+                if res.get('status') or res.get('success'):
+                    title, thumb, url = parse_siputzx(res, mode)
+                    if url:
+                        return jsonify({'success': True, 'title': title, 'thumbnail': thumb,
+                                        'url': url, 'type': mode.upper(), 'platform': 'SiputZX'})
+        except Exception as e:
+            print(f"[FB1] {e}")
 
-        res = r.json()
+        # ── FALLBACK 2: app.siputzx.my.id dengan UA mobile ──
+        try:
+            r = requests.get(
+                f"https://app.siputzx.my.id/api/d/igram?url={encoded}",
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36',
+                    'Accept':     'application/json, */*',
+                    'Referer':    'https://app.siputzx.my.id/',
+                    'Origin':     'https://app.siputzx.my.id',
+                },
+                timeout=20
+            )
+            if is_json_ok(r):
+                res = r.json()
+                if res.get('status') or res.get('success'):
+                    title, thumb, url = parse_siputzx(res, mode)
+                    if url:
+                        return jsonify({'success': True, 'title': title, 'thumbnail': thumb,
+                                        'url': url, 'type': mode.upper(), 'platform': 'SiputZX-App'})
+        except Exception as e:
+            print(f"[FB2] {e}")
 
-        if not res.get('status'):
-            return jsonify({'success': False, 'error': res.get('message', 'Story tidak tersedia atau private')}), 400
+        # ── FALLBACK 3: NexRay web.id v2 instagram ──
+        try:
+            r = requests.get(
+                "https://api.nexray.web.id/downloader/v2/instagram",
+                params={'url': story_url},
+                timeout=20
+            )
+            if is_json_ok(r):
+                res = r.json()
+                if res.get('status'):
+                    result = res.get('result', {})
+                    title  = result.get('title') or 'Instagram Story'
+                    thumb  = result.get('thumbnail') or result.get('cover') or ''
+                    media  = result.get('media', [])
+                    url    = (media[0].get('url') if isinstance(media, list) and media else '') or \
+                              result.get('url') or result.get('video') or result.get('data') or ''
+                    if url:
+                        return jsonify({'success': True, 'title': title, 'thumbnail': thumb,
+                                        'url': url, 'type': mode.upper(), 'platform': 'NexRay'})
+        except Exception as e:
+            print(f"[FB3] {e}")
 
-        # ── Parse struktur response SiputZX igram ──────────────────
-        # res['data']['url']  → list dict {url, name, type, ext, quality}
-        # res['data']['thumb'] → thumbnail URL
-        # res['data']['meta']  → {title, username, source, ...}
-        # ───────────────────────────────────────────────────────────
-
-        siput_data = res.get('data', {})
-        url_list   = siput_data.get('url', [])
-        meta       = siput_data.get('meta', {})
-        thumbnail  = siput_data.get('thumb', '')
-
-        # Judul
-        title = ''
-        if isinstance(meta, dict):
-            title = meta.get('title', '')
-            if not title:
-                username = meta.get('username', '')
-                title = f"Instagram Story @{username}" if username else "Instagram Story"
-
-        # Pilih URL terbaik
-        final_url = ''
-        valid_urls = [x for x in url_list if x and x.get('url')]
-
-        if mode == 'mp3':
-            # Cari audio dulu, kalau gak ada fallback ke video
-            audio = next((x for x in valid_urls if x.get('type') == 'audio' or 'audio' in (x.get('name') or '').lower()), None)
-            final_url = audio['url'] if audio else (valid_urls[0]['url'] if valid_urls else '')
-        else:
-            # Pilih kualitas tertinggi (sort by quality desc)
-            sorted_urls = sorted(valid_urls, key=lambda x: x.get('quality', 0), reverse=True)
-            final_url   = sorted_urls[0]['url'] if sorted_urls else ''
-
-        if not final_url:
-            return jsonify({'success': False, 'error': 'Tidak ada URL video di response SiputZX'}), 400
+        # ── FALLBACK 4: NexRay eu.cc ──
+        try:
+            r = requests.get(
+                "https://api.nexray.eu.cc/downloader/instagram",
+                params={'url': story_url},
+                timeout=20
+            )
+            if is_json_ok(r):
+                res = r.json()
+                if res.get('status'):
+                    result = res.get('result', {})
+                    title  = result.get('title') or 'Instagram Story'
+                    thumb  = result.get('thumbnail') or result.get('cover') or ''
+                    media  = result.get('media', [])
+                    url    = (media[0].get('url') if isinstance(media, list) and media else '') or \
+                              result.get('url') or result.get('video') or ''
+                    if url:
+                        return jsonify({'success': True, 'title': title, 'thumbnail': thumb,
+                                        'url': url, 'type': mode.upper(), 'platform': 'NexRay-EU'})
+        except Exception as e:
+            print(f"[FB4] {e}")
 
         return jsonify({
-            'success':   True,
-            'title':     title,
-            'thumbnail': thumbnail,
-            'url':       final_url,
-            'type':      mode.upper(),
-            'platform':  'Instagram-Story'
-        })
+            'success': False,
+            'error':   'Semua API gagal. Story mungkin sudah expired (>24 jam), private, atau semua server down.'
+        }), 502
 
-    except requests.exceptions.Timeout:
-        return jsonify({'success': False, 'error': 'SiputZX timeout, coba lagi'}), 504
-    except requests.exceptions.JSONDecodeError:
-        return jsonify({'success': False, 'error': 'SiputZX return bukan JSON (mungkin sedang maintenance)'}), 502
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/get_video', methods=['POST'])
 def get_video():
