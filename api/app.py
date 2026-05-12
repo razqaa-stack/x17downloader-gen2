@@ -41,9 +41,7 @@ def get_video():
         #  INSTAGRAM STORY — SIPUTX PRIMARY + NEXRAY FALLBACK
         # ═══════════════════════════════════════════════════════════
         if "instagram.com/stories/" in u:
-            # ── Coba SiputX dulu (lebih fresh untuk story) ──────
             try:
-                # URL encode parameter URL biar ga error
                 encoded_url = quote_plus(url)
                 endpoint_siput = f"https://app.siputzx.my.id/api/d/igram?url={encoded_url}"
                 
@@ -57,46 +55,69 @@ def get_video():
                 
                 r = requests.get(endpoint_siput, headers=headers, timeout=12)
                 
-                # ── Cek apakah response valid JSON ──────────────
                 content_type = r.headers.get('Content-Type', '')
-                
                 if 'application/json' not in content_type:
-                    # Response bukan JSON (error page HTML) → fallback
-                    raise Exception(f"SiputX HTML response (rate limit?): {content_type}")
+                    raise Exception(f"SiputX non-JSON response: {content_type}")
                 
                 res = r.json()
 
-                # ── Validasi structure response ─────────────────
                 if not res.get('status'):
                     raise Exception(res.get('message', 'Story tidak tersedia'))
+                
+                # ── Struktur response SiputX igram:
+                # res['data']['url']       → list video url
+                # res['data']['thumb']     → thumbnail URL  ← INI yang bener
+                # res['data']['meta']      → dict berisi title, username, dll
+                # res['data']['meta']['title'] → judul story
                 
                 data_siput = res.get('data', {})
                 urls = data_siput.get('url', [])
                 
                 if not urls or len(urls) == 0:
-                    raise Exception('Link download kosong')
+                    raise Exception('Link download kosong dari SiputX')
 
-                # ── Ekstrak data ─────────────────────────────────
-                # Mode mp3 → cari audio dari DASH manifest atau url audio
+                # ── Ekstrak thumbnail — ada di data_siput['thumb'] langsung ──
+                thumb = data_siput.get('thumb') or ''
+                # Fallback: cek juga key lain kalau thumb kosong
+                if not thumb:
+                    thumb = data_siput.get('thumbnail') or data_siput.get('cover') or ''
+
+                # ── Ekstrak title — ada di data_siput['meta']['title'] ──
+                meta = data_siput.get('meta', {})
+                title = ''
+                if isinstance(meta, dict):
+                    title = meta.get('title', '')
+                    # Kalau title masih kosong, bangun dari username
+                    if not title:
+                        username = meta.get('username', '')
+                        title = f"Instagram Story - @{username}" if username else "Instagram Story"
+                if not title:
+                    title = "Instagram Story"
+
+                # ── Ekstrak URL video ──
                 if mode == 'mp3':
-                    # Cek apakah ada variant audio di array url
+                    # Cari audio variant dulu
                     audio_url = None
                     for item in urls:
-                        if item.get('type') == 'audio' or 'audio' in item.get('name', '').lower():
-                            audio_url = item.get('url')
-                            break
-                    
-                    # Kalau ga ada audio variant, ambil video terus client extract audionya
+                        if isinstance(item, dict):
+                            if item.get('type') == 'audio' or 'audio' in item.get('name', '').lower():
+                                audio_url = item.get('url')
+                                break
                     final_url = audio_url if audio_url else urls[0].get('url')
                 else:
-                    # Mode mp4 → ambil kualitas tertinggi
-                    # Sort by quality descending
-                    sorted_urls = sorted(urls, key=lambda x: x.get('quality', 0), reverse=True)
-                    final_url = sorted_urls[0].get('url')
+                    # Kualitas tertinggi (sort by quality descending)
+                    valid_urls = [x for x in urls if isinstance(x, dict) and x.get('url')]
+                    if valid_urls:
+                        sorted_urls = sorted(valid_urls, key=lambda x: x.get('quality', 0), reverse=True)
+                        final_url = sorted_urls[0].get('url')
+                    else:
+                        raise Exception('Tidak ada URL valid di response SiputX')
 
-                meta = data_siput.get('meta', {})
-                title = meta.get('title') or "Instagram Story"
-                thumb = data_siput.get('thumb') or "https://api.nexray.web.id/favicon.ico"
+                # ── Fallback thumbnail kalau masih kosong ──
+                if not thumb:
+                    thumb = "https://api.nexray.web.id/favicon.ico"
+
+                print(f"✅ SiputX Story OK: title='{title}', thumb={'ada' if thumb else 'kosong'}, url={'ada' if final_url else 'kosong'}")
 
                 return jsonify({
                     'success': True,
@@ -108,9 +129,7 @@ def get_video():
                 })
 
             except Exception as siput_error:
-                # ── FALLBACK: NexRay Instagram v2 ───────────────
-                # SiputX gagal → pakai NexRay (lebih stabil tapi kadang ga support story fresh)
-                print(f"⚠️ APIs failed: {siput_error}, fallback to APIy...")
+                print(f"⚠️ SiputX gagal: {siput_error}, fallback ke NexRay...")
                 
                 try:
                     endpoint_nex = f"{NEX_BASE}/downloader/v2/instagram"
@@ -121,25 +140,22 @@ def get_video():
                     if not res_nex.get('status'):
                         return jsonify({
                             'success': False, 
-                            'error': f'gagal. Story mungkin private atau expired.'
+                            'error': f'Semua API gagal. Story mungkin private atau expired.'
                         }), 400
 
                     result_nex = res_nex.get('result', {})
                     
-                    # Ekstrak link
                     if mode == 'mp3':
-                        # Coba ambil audio kalau ada
                         final_url_nex = result_nex.get('audio') or result_nex.get('url')
                     else:
-                        # Video
                         media = result_nex.get('media', [])
                         if media and len(media) > 0:
                             final_url_nex = media[0].get('url')
                         else:
                             final_url_nex = result_nex.get('url')
 
-                    title_nex = result_nex.get('title')
-                    thumb_nex = result_nex.get('thumbnail')
+                    title_nex  = result_nex.get('title') or "Instagram Story"
+                    thumb_nex  = result_nex.get('thumbnail') or result_nex.get('cover') or ''
 
                     return jsonify({
                         'success': True,
@@ -153,69 +169,57 @@ def get_video():
                 except Exception as nex_error:
                     return jsonify({
                         'success': False,
-                        'error': f'Semua API gagal. APIs1: {str(siput_error)[:50]}, APIy2: {str(nex_error)[:50]}'
+                        'error': f'Semua API gagal. SiputX: {str(siput_error)[:60]}, NexRay: {str(nex_error)[:60]}'
                     }), 500
 
         # ═══════════════════════════════════════════════════════════
         #  PLATFORM LAIN (YOUTUBE, TIKTOK, FB, dll) — NEXRAY
         # ═══════════════════════════════════════════════════════════
         
-        # YouTube
         if any(x in u for x in ["youtube.com", "youtu.be"]):
             endpoint = f"{NEX_BASE}/downloader/v1/ytmp3" if mode == "mp3" else f"{NEX_BASE}/downloader/v1/ytmp4"
             params = {"url": url, "resolusi": "1080"}
         
-        # Facebook
         elif "facebook.com" in u or "fb.watch" in u:
             endpoint = f"{NEX_BASE}/downloader/facebook"
             params = {"url": url}
         
-        # Instagram (non-story: reel, post, IGTV)
         elif "instagram.com" in u:
             endpoint = f"{NEX_BASE}/downloader/v2/instagram"
             params = {"url": url}
         
-        # TikTok
         elif "tiktok.com" in u:
             endpoint = f"{NEX_BASE}/downloader/tiktok"
             params = {"url": url}
         
-        # Douyin
         elif "douyin.com" in u:
             endpoint = f"{NEX_BASE}/downloader/v1/douyin"
             params = {"url": url}
         
-        # Spotify
         elif "spotify.com" in u:
             endpoint = f"{NEX_BASE}/downloader/spotify"
             params = {"url": url}
         
-        # Pinterest
         elif "pinterest.com" in u or "pin.it" in u:
             endpoint = f"{NEX_BASE}/downloader/pinterest"
             params = {"url": url}
         
-        # Scribd
         elif "scribd.com" in u:
             endpoint = f"{NEX_BASE}/downloader/scribd"
             params = {"url": url}
         
-        # Twitter/X
         elif "twitter.com" in u or "x.com" in u:
             endpoint = f"{NEX_BASE}/downloader/twitter"
             params = {"url": url}
         
-        # Videy
         elif "videy.co" in u:
             endpoint = f"{NEX_BASE}/downloader/videy"
             params = {"url": url}
         
-        # All-in-one fallback
         else:
             endpoint = f"{NEX_BASE}/downloader/aio"
             params = {"url": url}
 
-        # ── Execute NexRay API ──────────────────────────────────
         r = requests.get(endpoint, params=params, timeout=30)
         res = r.json()
 
@@ -230,9 +234,7 @@ def get_video():
         title = result.get('title') or "X17 Downloader Result"
         thumb = result.get('thumbnail') or result.get('cover') or 'https://api.nexray.web.id/favicon.ico'
 
-        # ── Ekstraksi link berdasarkan mode ────────────────────
         if mode == "mp3":
-            # Audio priority: music_info > audio > url
             if "music_info" in result:
                 final_url = result["music_info"].get("url")
             elif "audio" in result:
@@ -240,9 +242,8 @@ def get_video():
             elif "url" in result:
                 final_url = result.get("url")
             else:
-                final_url = result.get("video") # Fallback ke video
+                final_url = result.get("video")
         else:
-            # Video priority: video_hd > media[0] > data > url > video
             if "video_hd" in result:
                 final_url = result.get("video_hd")
             elif "media" in result and isinstance(result["media"], list) and len(result["media"]) > 0:
