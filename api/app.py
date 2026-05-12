@@ -15,7 +15,7 @@ TEMP_DIR = "/tmp"
 
 @app.route('/')
 def index():
-    return "X17 ULTRA ENGINE V13 - SIPUTX + NEXRAY HYBRID 🚀"
+    return "X17 ULTRA ENGINE V14 - SIPUTX + NEXRAY HYBRID 🚀"
 
 @app.route('/chat_ai', methods=['POST'])
 def chat_ai():
@@ -74,7 +74,7 @@ def get_video():
                 urls = data_siput.get('url', [])
                 
                 if not urls or len(urls) == 0:
-                    raise Exception('Link download kosong dari SiputX')
+                    raise Exception('Link download kosong')
 
                 # ── Ekstrak data ─────────────────────────────────
                 # Mode mp3 → cari audio dari DASH manifest atau url audio
@@ -110,7 +110,7 @@ def get_video():
             except Exception as siput_error:
                 # ── FALLBACK: NexRay Instagram v2 ───────────────
                 # SiputX gagal → pakai NexRay (lebih stabil tapi kadang ga support story fresh)
-                print(f"⚠️ SiputX failed: {siput_error}, fallback to NexRay...")
+                print(f"⚠️ APIs failed: {siput_error}, fallback to APIy...")
                 
                 try:
                     endpoint_nex = f"{NEX_BASE}/downloader/v2/instagram"
@@ -121,7 +121,7 @@ def get_video():
                     if not res_nex.get('status'):
                         return jsonify({
                             'success': False, 
-                            'error': f'SiputX & NexRay gagal. Story mungkin private atau expired.'
+                            'error': f'gagal. Story mungkin private atau expired.'
                         }), 400
 
                     result_nex = res_nex.get('result', {})
@@ -138,8 +138,8 @@ def get_video():
                         else:
                             final_url_nex = result_nex.get('url')
 
-                    title_nex = result_nex.get('title') or "Instagram Story (NexRay)"
-                    thumb_nex = result_nex.get('thumbnail') or "https://api.nexray.web.id/favicon.ico"
+                    title_nex = result_nex.get('title')
+                    thumb_nex = result_nex.get('thumbnail')
 
                     return jsonify({
                         'success': True,
@@ -153,7 +153,7 @@ def get_video():
                 except Exception as nex_error:
                     return jsonify({
                         'success': False,
-                        'error': f'Semua API gagal. SiputX: {str(siput_error)[:50]}, NexRay: {str(nex_error)[:50]}'
+                        'error': f'Semua API gagal. APIs1: {str(siput_error)[:50]}, APIy2: {str(nex_error)[:50]}'
                     }), 500
 
         # ═══════════════════════════════════════════════════════════
