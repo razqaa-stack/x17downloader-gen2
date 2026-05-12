@@ -1,5 +1,3 @@
-
-
 import os
 import time
 import requests
@@ -31,11 +29,6 @@ def chat_ai():
     except:
         return jsonify({"success": False, "reply": "AI Offline."})
 
-# ═══════════════════════════════════════════════════════════════════
-#  /proxy_siput  — BARU
-#  Frontend kirim result siputX ke sini, backend langsung return
-#  (dipakai untuk Instagram Story karena SiputX block server-side)
-# ═══════════════════════════════════════════════════════════════════
 @app.route('/proxy_siput', methods=['POST'])
 def proxy_siput():
     """
@@ -71,10 +64,6 @@ def proxy_siput():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ═══════════════════════════════════════════════════════════════════
-# PATCH: Tambah endpoint ini ke app.py kamu
-# Taruh setelah @app.route('/proxy_siput') atau sebelum if __name__
-# ═══════════════════════════════════════════════════════════════════
 
 @app.route('/ig_story', methods=['POST'])
 def ig_story():
@@ -164,11 +153,6 @@ def ig_story():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-# ═══════════════════════════════════════════════════════════════════
-#  /get_video  — Platform lain tetap server-side via NexRay
-#  Instagram Story TIDAK masuk sini lagi — sudah handle di frontend
-# ═══════════════════════════════════════════════════════════════════
 @app.route('/get_video', methods=['POST'])
 def get_video():
     try:
