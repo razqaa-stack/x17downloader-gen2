@@ -10,7 +10,7 @@ os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 app = Flask(__name__)
 CORS(app)
 
-NEX_BASE = "https://api.nexray.web.id"
+NEX_BASE = "https://api.nexray.eu.cc"
 TEMP_DIR = "/tmp"
 
 @app.route('/')
@@ -302,7 +302,7 @@ def get_video():
 
         # ── Platform routing ─────────────────────────────────────
         if any(x in u for x in ["youtube.com", "youtu.be"]):
-            endpoint = f"{NEX_BASE}/downloader/v1/ytmp3" if mode == "mp3" else f"{NEX_BASE}/downloader/v1/ytmp4"
+            endpoint = f"{NEX_BASE}/downloader/ytmp3" if mode == "mp3" else f"{NEX_BASE}/downloader/v1/ytmp4"
             params   = {"url": url, "resolusi": "1080"}
 
         elif "facebook.com" in u or "fb.watch" in u:
